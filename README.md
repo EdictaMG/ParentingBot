@@ -7,7 +7,7 @@ ParentingBot answering parenting questions based on resources from ElternLeben.d
    cd mock_api
    ```
 
-**Run the FastAPI application**:
+**Then run the FastAPI application**:
    ```bash
    uvicorn mock_api:app --reload
    ```
