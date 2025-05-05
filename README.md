@@ -2,9 +2,13 @@
 ParentingBot answering parenting questions based on resources from ElternLeben.de
 
 
+**Run the FastAPI application**:
+   ```bash
+   uvicorn mock_api:app --reload
+   ```
+   The API will be available at http://127.0.0.1:8000
 
-
-## 🔧 Environment Setup
+## Environment Setup
 
 This project uses environment variables to manage sensitive information like API tokens. These variables are stored in a local `.env` file that is **not** included in the repository (for security).
 
