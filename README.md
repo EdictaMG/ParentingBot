@@ -1,7 +1,7 @@
 # ParentingBot
 ParentingBot answering parenting questions based on resources from ElternLeben.de
 
-## Mock API
+## Activating the Mock API
 **Navigate to the API folder**:
    ```bash
    cd mock_api
