@@ -1,3 +1,14 @@
+# Ignore zipped files
+embeddings.zip
+data.zip
+vector_index.zip
+
+# Ignore extracted folders
+embeddings/
+data/
+vector_index/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

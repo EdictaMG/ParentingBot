@@ -1,5 +1,4 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
-Embeddings.zip filter=lfs diff=lfs merge=lfs -text
 Embeddings/models--sentence-transformers--all-MiniLM-l6-v2/blobs/* filter=lfs diff=lfs merge=lfs -text
 Embeddings/**/* filter=lfs diff=lfs merge=lfs -text
 data/**/* filter=lfs diff=lfs merge=lfs -text
