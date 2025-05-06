@@ -108,6 +108,11 @@ def get_documents_from_urls(csv_path): # Loading the URLs and downloads/returns 
 # Define paths
 base_dir = os.path.dirname(__file__)
 
+# Paths to extract contents
+data_extract_path = os.path.join(base_dir, "data")
+embeddings_extract_path = os.path.join(base_dir, "embeddings")
+vector_index_extract_path = os.path.join(base_dir, "vector_index")
+
 # Define zipped resources and their corresponding Google Drive file IDs
 resources = {
     "data.zip": {
