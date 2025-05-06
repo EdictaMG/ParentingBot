@@ -240,8 +240,6 @@ llama-cloud==0.1.19
 llama-cloud-services==0.6.16
     # via llama-parse
 llama-index==0.12.32
-llama-index==0.12.33
-    # via -r requirements.in
 llama-index-agent-openai==0.4.6
     # via
     #   llama-index
