@@ -286,6 +286,7 @@ llama-index-program-openai==0.3.1
 llama-index-question-gen-openai==0.3.0
     # via llama-index
 llama-index-readers-web
+llama-index-readers-web==0.3.9
 llama-index-readers-file==0.4.7
     # via llama-index
 llama-index-readers-llama-parse==0.4.0
