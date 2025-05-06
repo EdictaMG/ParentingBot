@@ -261,6 +261,7 @@ llama-index-core==0.12.33.post1
     #   llama-index-question-gen-openai
     #   llama-index-readers-file
     #   llama-index-readers-llama-parse
+llama-index-embeddings-huggingface==0.5.3
 llama-index-embeddings-openai==0.3.1
     # via
     #   llama-index
