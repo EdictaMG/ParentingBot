@@ -239,6 +239,7 @@ llama-cloud==0.1.19
     #   llama-index-indices-managed-llama-cloud
 llama-cloud-services==0.6.16
     # via llama-parse
+llama-index==0.12.32
 llama-index==0.12.33
     # via -r requirements.in
 llama-index-agent-openai==0.4.6
@@ -284,6 +285,7 @@ llama-index-program-openai==0.3.1
     #   llama-index-question-gen-openai
 llama-index-question-gen-openai==0.3.0
     # via llama-index
+llama-index-readers-web
 llama-index-readers-file==0.4.7
     # via llama-index
 llama-index-readers-llama-parse==0.4.0
