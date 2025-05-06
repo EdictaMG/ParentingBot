@@ -287,6 +287,7 @@ llama-index-readers-file==0.4.7
     # via llama-index
 llama-index-readers-llama-parse==0.4.0
     # via llama-index
+llama-index-llms-huggingface-api==0.4.1
 llama-parse==0.6.16
     # via llama-index-readers-llama-parse
 lxml==5.4.0
