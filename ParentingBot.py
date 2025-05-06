@@ -10,6 +10,8 @@ from rapidfuzz import fuzz  #used for approximate keyword matching (wording need
 from collections import defaultdict
 import re
 import zipfile
+import gdown
+import asyncio
 
 
 from llama_index.llms.huggingface_api import HuggingFaceInferenceAPI
@@ -127,10 +129,10 @@ resources = {
 
 # ----- UTILITIES ------------------------------------------------------------------------------------
 
-# Function to download from Google Drive
-def download_from_gdrive(file_id, dest_path):
+# Asynchronous function to download from Google Drive
+async def download_from_gdrive(file_id, dest_path):
     url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, dest_path, quiet=False)
+    await asyncio.to_thread(gdown.download, url, dest_path, quiet=False)
 
 # Function to unzip files if they aren't already extracted
 def unzip_file(zip_path, extract_to_path, gdrive_id=None):
@@ -138,7 +140,8 @@ def unzip_file(zip_path, extract_to_path, gdrive_id=None):
         print(f"{zip_path} not found, downloading from Google Drive...")
         if gdrive_id is None:
             raise ValueError(f"No Google Drive ID provided for {zip_path}")
-        download_from_gdrive(gdrive_id, zip_path)
+        # Running the asynchronous download
+        asyncio.run(download_from_gdrive(gdrive_id, zip_path))
 
     if not os.path.exists(extract_to_path):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
