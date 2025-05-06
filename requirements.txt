@@ -291,6 +291,7 @@ llama-parse==0.6.16
     # via llama-index-readers-llama-parse
 lxml==5.4.0
     # via newspaper3k
+lxml[html_clean]
 markupsafe==3.0.2
     # via
     #   jinja2
