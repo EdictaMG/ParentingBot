@@ -175,8 +175,7 @@ hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
 llm = HuggingFaceInferenceAPI(
     model_name=hf_model,
     task="text-generation",
-    api_key=API_TOKEN #to get a free token, visit https://huggingface.co/, create an account, select "Settings" from dropdown menu, in left sidebar, within "Access Tokens" click on "New Token", select "read", and generate. Copy and save token! 
-)
+    api_key=API_TOKEN)
 
 # Load documents from CSV in the extracted data folder
 csv_path = os.path.join(data_extract_path, "metadata.csv")
