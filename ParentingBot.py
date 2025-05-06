@@ -103,24 +103,43 @@ def get_documents_from_urls(csv_path): # Loading the URLs and downloads/returns 
     return download_articles(urls)
 
 # ----- PATHS & ENVIRONMENT SETUP -------------------------------------------------------------------
-
 # Define paths
 base_dir = os.path.dirname(__file__)
 
-# Paths for zipped resources
-data_zip_path = os.path.join(base_dir, "data.zip")
-embeddings_zip_path = os.path.join(base_dir, "embeddings.zip")
-vector_index_zip_path = os.path.join(base_dir, "vector_index.zip")
-
-# Paths to extract contents
-data_extract_path = os.path.join(base_dir, "data")
-embeddings_extract_path = os.path.join(base_dir, "Embeddings")
-vector_index_extract_path = os.path.join(base_dir, "Vector_index")
+# Define zipped resources and their corresponding Google Drive file IDs
+resources = {
+    "data.zip": {
+        "path": os.path.join(base_dir, "data.zip"),
+        "extract_to": os.path.join(base_dir, "data"),
+        "gdrive_id": "14AJXPCmjmmQpXaOlhwN4dHZlfBLseLiA"
+    },
+    "embeddings.zip": {
+        "path": os.path.join(base_dir, "embeddings.zip"),
+        "extract_to": os.path.join(base_dir, "embeddings"),
+        "gdrive_id": "1psh_F3yCalADAuP2xUeS8Yzbmg6zru1E"
+    },
+    "vector_index.zip": {
+        "path": os.path.join(base_dir, "vector_index.zip"),
+        "extract_to": os.path.join(base_dir, "vector_index"),
+        "gdrive_id": "1sKAAKuwE0-I_Hb2J5bgDu4Kacs8Hriiw"
+    }
+}
 
 # ----- UTILITIES ------------------------------------------------------------------------------------
 
+# Function to download from Google Drive
+def download_from_gdrive(file_id, dest_path):
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, dest_path, quiet=False)
+
 # Function to unzip files if they aren't already extracted
-def unzip_file(zip_path, extract_to_path):
+def unzip_file(zip_path, extract_to_path, gdrive_id=None):
+    if not os.path.exists(zip_path):
+        print(f"{zip_path} not found, downloading from Google Drive...")
+        if gdrive_id is None:
+            raise ValueError(f"No Google Drive ID provided for {zip_path}")
+        download_from_gdrive(gdrive_id, zip_path)
+
     if not os.path.exists(extract_to_path):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_to_path)
@@ -128,10 +147,12 @@ def unzip_file(zip_path, extract_to_path):
     else:
         print(f"Extracted folder already exists: {extract_to_path}, skipping extraction.")
 
-# Unzip data, embeddings, and vector index
-unzip_file(data_zip_path, data_extract_path)
-unzip_file(embeddings_zip_path, embeddings_extract_path)
-unzip_file(vector_index_zip_path, vector_index_extract_path)
+# ----- PROCESS ALL RESOURCES ------------------------------------------------------------------------
+
+for resource in resources.values():
+    unzip_file(resource["path"], resource["extract_to"], resource["gdrive_id"])
+
+
 
 # ----- SEARCH ENGINE SETUP ------------------------------------------------------------------------------------
 dotenv_path = os.path.join(os.path.dirname(__file__), ".env")

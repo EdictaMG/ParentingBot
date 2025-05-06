@@ -115,6 +115,7 @@ frozenlist==1.6.0
     #   aiosignal
 fsspec==2025.3.2
     # via llama-index-core
+gdown==5.1.0
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.44
