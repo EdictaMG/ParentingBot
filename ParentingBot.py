@@ -176,10 +176,18 @@ else:
     load_dotenv(dotenv_path=dotenv_path, override=True)
     API_TOKEN = os.getenv("API_TOKEN")
 
+#if not API_TOKEN:
+    #raise ValueError("API_TOKEN not found in secrets or environment variables")
+
 if not API_TOKEN:
-    raise ValueError("API_TOKEN not found in environment variables")
+    st.error("API token is missing.")
+else:
+    st.success("API token loaded successfully.")
+
+
 # Initialize LLM
-hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
+#hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
+hf_model = "gpt2"
 llm = HuggingFaceInferenceAPI(
     model_name=hf_model,
     task="text-generation",
