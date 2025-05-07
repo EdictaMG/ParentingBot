@@ -5,7 +5,7 @@ ElternLeben Bot is meant to provide support to parents by providing information 
 
 
 ## Step 1: Clone the repository
-Close this repository to your local computer. Due to use of a Mock API, a cloud option is not available at this moment.
+Clone this repository to your local computer. Due to use of a Mock API, a cloud option (such as deploying to [streamlit.io](streamlit.io) is not available at this moment.
 
 ## Step 2: Activate the Mock API
 **Navigate to the API folder**:
