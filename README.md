@@ -1,5 +1,5 @@
 # ParentingBot "ElternLeben Bot"
-This repository provides all the files necessary to run the ParentingBot "ElternLeben Bot: Hilfe, wann immer du sie brauchst" in Streamlit locally.
+This repository provides all the files necessary to run the ParentingBot "ElternLeben Bot: Hilfe, wann immer du sie brauchst" in Streamlit locally using Python.
 
 ElternLeben Bot is meant to provide support to parents by providing information and answering parenting-related questions, using as a knowledge source the resources from [ElternLeben.de](https://www.elternleben.de/).
 
