@@ -189,8 +189,7 @@ else:
     st.success("API token loaded successfully.")
 
 # Initialize LLM
-#hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
-hf_model = "openai-community/gpt2"
+hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
 llm = HuggingFaceInferenceAPI(
     model_name=hf_model,
     task="text-generation",
