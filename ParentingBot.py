@@ -171,21 +171,26 @@ if "API_TOKEN" in st.secrets:
 else:
     # When running locally, use .env file
     dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
-    load_dotenv(dotenv_path=dotenv_path, override=True)
-    API_TOKEN = os.getenv("API_TOKEN")
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        API_TOKEN = os.getenv("API_TOKEN")
 
-#if not API_TOKEN:
-    #raise ValueError("API_TOKEN not found in secrets or environment variables")
-
+# Check if API_TOKEN is missing
 if not API_TOKEN:
-    st.error("API token is missing.")
+    # Specific error handling based on environment
+    if "API_TOKEN" not in st.secrets:
+        if os.path.exists(dotenv_path):
+            st.error("API token is missing in the .env file (Error Code: LOCAL-001).")
+        else:
+            st.error("API token is missing, and .env file is not found (Error Code: LOCAL-002).")
+    else:
+        st.error(f"API token is missing in secrets.toml (Error Code: CLOUD-001).")
 else:
     st.success("API token loaded successfully.")
 
-
 # Initialize LLM
 #hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
-hf_model = "gpt2"
+hf_model = "openai-community/gpt2"
 llm = HuggingFaceInferenceAPI(
     model_name=hf_model,
     task="text-generation",
