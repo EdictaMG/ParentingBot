@@ -166,10 +166,18 @@ for resource in resources.values():
 dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=dotenv_path, override=True)
 
-API_TOKEN = os.getenv("API_TOKEN")
+# Check if running on Streamlit Cloud
+if "API_TOKEN" in st.secrets:
+    # When deployed on Streamlit Cloud, use API_TOKEN from secrets.toml
+    API_TOKEN = st.secrets["API_TOKEN"]
+else:
+    # When running locally, use .env file
+    dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+    load_dotenv(dotenv_path=dotenv_path, override=True)
+    API_TOKEN = os.getenv("API_TOKEN")
+
 if not API_TOKEN:
     raise ValueError("API_TOKEN not found in environment variables")
-
 # Initialize LLM
 hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
 llm = HuggingFaceInferenceAPI(
