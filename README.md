@@ -21,8 +21,7 @@ To run the ElternLeben Bot you’ll need a Hugging Face API token. Following are
    - Click **"Generate"** to create the token.
 
 4. **Copy and store the token**  
-   You’ll need this token to access Hugging Face models via the API. Paste it into your .env file as shown in the example .env example file. 
-
+   You’ll need this token to access Hugging Face models via the API. Paste it into your .env file as shown in the  .env.example file. 
 
 ## Step 2: Clone the repository
 Clone this repository to your local computer. Due to use of a Mock API, a cloud option (such as deploying to [streamlit.io](streamlit.io)) is not available at this moment.
