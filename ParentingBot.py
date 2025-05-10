@@ -12,6 +12,7 @@ import re
 import zipfile
 import gdown
 import asyncio
+from requests.exceptions import RequestException
 
 
 from llama_index.llms.huggingface_api import HuggingFaceInferenceAPI
@@ -35,9 +36,9 @@ from llama_index.readers.web import SimpleWebPageReader
 
 # -----------------------------------------------------------------------------------------------------------
 
-API_URL = "http://127.0.0.1:8000"  # must have API running in terminal FIRST
-# instructions: navigate to the API folder in terminal:   cd mock_api
-# then: run the FastAPI application: uvicorn mock_api:app --reload
+API_URL = "http://127.0.0.1:8000"  # Must have API running in terminal FIRST
+# Instructions: Navigate to the API folder in terminal:   cd mock_api
+# Then: Run the FastAPI application: uvicorn mock_api:app --reload
 
 # ----- PAGE PRESENTATION ------------------------------------------------------------------------------------
 st.title("ElternLeben Bot: Hilfe, wann immer du sie brauchst")
@@ -71,6 +72,7 @@ with st.sidebar:
             }
         </style>
     """, unsafe_allow_html=True)
+    
 # ----- SESSION STATES ----------------------------------------------------------------------------------
 
 if "chat_history" not in st.session_state:
@@ -80,7 +82,7 @@ if "mentioned_topics" not in st.session_state:
     st.session_state["mentioned_topics"] = set()
     
 if "topic_counts" not in st.session_state:
-    st.session_state["topic_counts"] = defaultdict(int)
+    st.session_state["topic_counts"] = {}
 
 # ----- SIDEBAR CONTROLS -------------------------------------------------------------------------------
 with st.sidebar:
@@ -111,7 +113,7 @@ def load_article_urls(csv_path): #  Loading and returning a list of URLs from th
 
 
 def download_articles(urls):
-    docs = []
+    documents = []
     for url in urls:
         try:
             article = Article(url)
@@ -119,17 +121,27 @@ def download_articles(urls):
             article.parse()
             text = article.text.strip()
             if text:
-                docs.append(Document(text=text))
+                doc = Document(text=text, metadata={"url":url})
+                documents.append(doc)
+                print(f"Document created for URL: {url}, Metadata: {doc.metadata}")  # Debug log to confirm metadata
         except Exception as e:
-            print(f"Der Download ist fehlgeschlagen {url}: {e}")
-    return docs
+            print(f"Failed to download article from {url}: {e}")
+            continue
+    return documents
 
-@st.cache_resource
-def get_documents_from_urls(csv_path): # Loading the URLs; returns the parsed articles (the full process of extracting and processing article content).
+@st.cache_resource(show_spinner=False)
+def get_documents_with_metadata(csv_path):
     urls = load_article_urls(csv_path)
     return download_articles(urls)
+    
 
-# ----- PATHS & ENVIRONMENT SETUP -------------------------------------------------------------------
+
+
+# ----- TOGGLE: Set to True for first run; False for subsequent runs -------
+IS_FIRST_RUN = False
+
+# ----- PATHS & ENVIRONMENT SETUP ------------------------------------------------------------------
+
 base_dir = os.path.dirname(__file__)
 
 data_extract_path = os.path.join(base_dir, "data")
@@ -139,62 +151,71 @@ vector_index_extract_path = os.path.join(base_dir, "vector_index")
 resources = {
     "data.zip": {
         "path": os.path.join(base_dir, "data.zip"),
-        "extract_to": os.path.join(base_dir, "data"),
+        "extract_to": data_extract_path,
         "gdrive_id": "14AJXPCmjmmQpXaOlhwN4dHZlfBLseLiA"
     },
     "embeddings.zip": {
         "path": os.path.join(base_dir, "embeddings.zip"),
-        "extract_to": os.path.join(base_dir, "embeddings"),
-        "gdrive_id": "1psh_F3yCalADAuP2xUeS8Yzbmg6zru1E"
+        "extract_to": embeddings_extract_path,
+        "gdrive_id": "1WOfzzc9zT5y3_zp70SQhkRVFOEJvOXxG"
     },
     "vector_index.zip": {
         "path": os.path.join(base_dir, "vector_index.zip"),
-        "extract_to": os.path.join(base_dir, "vector_index"),
-        "gdrive_id": "1sKAAKuwE0-I_Hb2J5bgDu4Kacs8Hriiw"
+        "extract_to": vector_index_extract_path,
+        "gdrive_id": "1mziUxOAKJ_UehlAQEDBfgT1UbORYDbk-"
     }
 }
 
+
 # ----- UTILITIES ------------------------------------------------------------------------------------
+def remove_directory(directory_path):
+    for root, dirs, files in os.walk(directory_path, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
+    os.rmdir(directory_path)
+
 async def download_from_gdrive(file_id, dest_path):
     url = f"https://drive.google.com/uc?id={file_id}"
     await asyncio.to_thread(gdown.download, url, dest_path, quiet=False)
 
+def folder_exists_and_up_to_date(folder_path, zip_path):
+    if os.path.exists(folder_path):
+        if not any(os.scandir(folder_path)):
+            print(f"{folder_path} is empty, extracting...")
+            return False
+        folder_time = os.path.getmtime(folder_path)
+        zip_time = os.path.getmtime(zip_path)
+        return folder_time >= zip_time
+    return False
+
 def unzip_file(zip_path, extract_to_path, gdrive_id=None):
     if not os.path.exists(zip_path):
-        print(f"{zip_path} not found, downloading from Google Drive...")
+        print(f"{zip_path} not found, downloading...")
         if gdrive_id is None:
-            raise ValueError(f"No Google Drive ID provided for {zip_path}")
+            raise ValueError(f"No GDrive ID provided for {zip_path}")
         asyncio.run(download_from_gdrive(gdrive_id, zip_path))
 
-    if not os.path.exists(extract_to_path):
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to_path)
-        print(f"Extracted {zip_path} to {extract_to_path}")
-    else:
-        print(f"Extracted folder already exists: {extract_to_path}, skipping extraction.")
+    if folder_exists_and_up_to_date(extract_to_path, zip_path):
+        print(f"{extract_to_path} is up to date.")
+        return
 
-# ----- PROCESS ALL RESOURCES ------------------------------------------------------------------------
-for resource in resources.values():
-    unzip_file(resource["path"], resource["extract_to"], resource["gdrive_id"])
+    if os.path.exists(extract_to_path):
+        print(f"Removing old {extract_to_path}")
+        remove_directory(extract_to_path)
 
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_to_path)
+    print(f"Extracted {zip_path}.")
 
 
 # ----- SEARCH ENGINE SETUP ------------------------------------------------------------------------------------
-secrets_path = os.path.join(os.path.expanduser("~"), ".streamlit", "secrets.toml")
-dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
-
-if os.path.exists(secrets_path):
-    API_TOKEN = st.secrets.get("API_TOKEN")
-else:
-    load_dotenv(dotenv_path=dotenv_path, override=True)
-    API_TOKEN = os.getenv("API_TOKEN")
+load_dotenv(dotenv_path=os.path.join(base_dir, ".env"), override=True)
+API_TOKEN = os.getenv("API_TOKEN")
 
 if not API_TOKEN:
-    msg = (
-        "API token is missing in the .env file (Error Code: LOCAL-001)."
-        if os.path.exists(dotenv_path)
-        else "API token is missing, and .env file is not found (Error Code: LOCAL-002).")
-    st.error(msg)
+    st.error("Missing API token.")
     st.stop()
 
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
@@ -205,12 +226,15 @@ hf_model = "mistralai/Mistral-7B-Instruct-v0.3"
 llm = HuggingFaceInferenceAPI(
     model_name=hf_model,
     task="text-generation",
-    headers=headers
+    headers=headers,
+    generation_kwargs={
+        "temperature": 0.3,           # Controls randomness
+        "max_new_tokens": 300,        # Limits response length
+        "top_p": 0.85,                 # Sampling: Limits the number of tokens considered during sampling
+        "repetition_penalty": 1.2,   # Reduces repetitive outputs
+        "do_sample": True             # Enables sampling 
+    }
 )
-
-# Loading documents from CSV into the extracted data folder
-csv_path = os.path.join(data_extract_path, "metadata.csv")
-documents = get_documents_from_urls(csv_path)
 
 # Embedding model
 embedding_model = "sentence-transformers/all-MiniLM-l6-v2"
@@ -218,29 +242,76 @@ embeddings = HuggingFaceEmbedding(
     model_name=embedding_model,
     cache_folder=embeddings_extract_path
 )
+print("Embedding model loaded:", embeddings)
+
 
 text_splitter = SentenceSplitter(chunk_size=800, chunk_overlap=150)
+print("Splitter settings:", text_splitter.chunk_size)
 
-## First run - Create vector index
-## Uncomment to run the first time (this creates the vector index and stores it in a zipped file)
-vector_index = VectorStoreIndex.from_documents(
-    documents,
-    transformations=[text_splitter],
-    embed_model=embeddings
-)
-vector_index.storage_context.persist(persist_dir=vector_index_extract_path)
-## Save the vector index as a zip file for future use
-vector_index_zip_path = resources["vector_index.zip"]["path"]
-with zipfile.ZipFile(vector_index_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-    for root, _, files in os.walk(vector_index_extract_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            arcname = os.path.relpath(file_path, start=vector_index_extract_path)
-            zipf.write(file_path, arcname=arcname)
-            
-# Uncomment for subsequent runs (load vector index from storage)
-#storage_context = StorageContext.from_defaults(persist_dir=vector_index_extract_path)
-#vector_index = load_index_from_storage(storage_context, embed_model=embeddings)
+# ----- DATA PREP -----------------------------------------------------------------------
+# Loading documents from CSV into the extracted data folder
+csv_path = os.path.join(data_extract_path, "metadata.csv")
+documents = get_documents_with_metadata(csv_path)
+
+print(f"Loaded {len(documents)} documents")
+
+
+
+# ----- FIRST RUN (generate and save) vs SUBSEQUENT RUNS (load from storage) -------------
+if IS_FIRST_RUN:
+    print("🔄 First run: creating and saving index/embeddings...")
+    print(f"Document count going into index: {len(documents)}")
+
+    # --- DIAGNOSTIC: Check documents ---
+    if len(documents) == 0:
+        print("⚠️ No documents to index. Check your CSV or download process.")
+    else:
+        print("✅ Documents successfully loaded.")
+
+    # --- DIAGNOSTIC: Folder check & write test ---
+    if os.path.exists(vector_index_extract_path):
+        print("📁 vector_index folder exists.")
+        test_file_path = os.path.join(vector_index_extract_path, "test_write.txt")
+        try:
+            with open(test_file_path, "w") as f:
+                f.write("test")
+            print("✅ Write permissions OK.")
+            os.remove(test_file_path)
+        except Exception as e:
+            print(f"❌ Cannot write to vector_index folder: {e}")
+    else:
+        print("📂 vector_index folder does NOT exist. Will be created by persist().")
+
+    # --- Optional: remove old folder to ensure clean write ---
+    if os.path.exists(vector_index_extract_path):
+        print("🧹 Removing existing vector_index folder to force fresh persist.")
+        remove_directory(vector_index_extract_path)
+
+    # --- Create and persist index ---
+    try:
+        print("⚙️ Creating vector index from documents...")
+        vector_index = VectorStoreIndex.from_documents(
+            documents,
+            transformations=[text_splitter],
+            embed_model=embeddings
+        )
+        print("💾 Persisting vector index to disk...")
+        vector_index.storage_context.persist(persist_dir=vector_index_extract_path)
+        print("✅ Vector index persisted successfully.")
+    except Exception as e:
+        print(f"❌ Failed during vector index creation or persist: {e}")
+
+    st.stop() # Stop after first run to avoid executing rest of the app
+
+else:
+    print("⬇️ Subsequent run: downloading and loading saved index...")
+    for resource in resources.values():
+        unzip_file(resource["path"], resource["extract_to"], resource["gdrive_id"])
+
+    storage_context = StorageContext.from_defaults(persist_dir=vector_index_extract_path)
+    vector_index = load_index_from_storage(storage_context, embed_model=embeddings)
+    print("✅ Vector index loaded successfully.")
+        
 
 # ---------------CHATBOT SETUP ------------------------------------------------------------------------------------
 retriever = vector_index.as_retriever(similarity_top_k=2)
@@ -251,69 +322,57 @@ prompts = [
         role=MessageRole.SYSTEM,
         content=("""
             
-OBJECTIVE:
-You are an outstanding customer service representative of ElternLeben.de, a platform that supports parents with content and online advice on parenting, baby and child development, nutrition and more.
-Your goal is to understand users' needs and guide them to the right products or information on ElternLeben.de to solve their problem.
+You are a helpful and professional parenting assistant for ElternLeben.de — a trusted platform offering expert articles, webinars, consultations, and email advice on parenting, child development, baby care, nutrition, and more.
 
+OBJECTIVE:  
+Your goal is to understand users’ parenting concerns and guide them to helpful resources and services **only from ElternLeben.de**.
 
-Procedure:
-1. Ask about the user's challenge:
-First ask about the user's current challenge (e.g. baby sleep, nutrition, parenting, screen time, etc.).
-2. ALWAYS determine the support required:
-Find out what kind of support the user is looking for:
--Does he need quick, personalized advice?
--Are they looking for general information or do they have specific questions?
--Do they want to delve deeper into a topic?
+INSTRUCTIONS:
 
-Understand the user's needs better before recommending something:
--Always ask at least one or two follow-up questions to make sure you understand the user properly before making recommendations.
+1. **Identify the user's concern**  
+Ask the user to briefly describe what they need help with (e.g., baby sleep, toddler behavior, screen time, nutrition, etc.).
 
-3. Recommend suitable services based on needs:
-a. Articles:
--ElternLeben.de has articles written by experts on many topics.
--Don't give general information on the topic, but on the specific problem.
--You only give tips that you know from articles on ElternLeben.de.
--If you give a tip or information, always link to the source (a page from ElternLeben.de).
--Only link to ElternLeben.de. Only link URLs that you know.
--If you give tips or link to an article, you must also always recommend a suitable service (e-mail advice, midwife consultation - for baby parents -, parenting consultations - if the topic is suitable - or on-demand courses and eBooks - if the topic is suitable).
--This additional recommendation also always has a link.
+2. **Clarify what kind of support they’re looking for**  
+Ask follow-up questions to determine whether they need:
+- Quick, personal advice
+- General or specific information
+- A deep dive into a topic (e.g., via a course or ebook)
 
+Always ask at least one or two follow-up questions before making recommendations.
 
-b. Email advice:
-Offer this service if the user has specific questions: https://www.elternleben.de/ueber-stell-uns-deine-frage/
+3. **Provide recommendations based on retrieved content**  
+Use only information from the retrieved knowledge base (ElternLeben.de articles or resources).  
+Do not answer based on general knowledge or guesswork.
 
-c. Parent consultation:
--Only recommend this for baby sleep, parenting, cleanliness education, kindergarten or screen time: https://www.elternleben.de/elternsprechstunde/
+If an article answers their concern:
+- Provide a **concise summary** of the solution.
+- Always include the **exact source link** from ElternLeben.de.
+- Add a relevant **service recommendation** (see below).
 
+SERVICE OPTIONS:
 
-d. Midwife advice:
--Recommend this service for topics related to baby sleep or breastfeeding (only for children under 1 year): 
-https://www.elternleben.de/hebammensprechstunde/
+- **Articles**: Expert-written articles. Only give tips based on actual content. Always cite the URL.
 
+- **Email Advice** (for specific questions):  
+  [Ask a question](https://www.elternleben.de/ueber-stell-uns-deine-frage/)
 
-e. On-demand courses and eBooks:
--If the user wants to delve deeper into a topic or is looking for more comprehensive information, you can recommend paid webinars or eBooks from ElternLeben.de.
--You always link to the real URL of the course (or eBook) on ElternLeben.de.
--You know the URL or it is in the knowledge base (file metadata.csv).
--Only link to ElternLeben.de.
--Only link URLs that you know.
+- **Parent Consultation** (for baby sleep, parenting, potty training, kindergarten, screen time):  
+  [Parent consultation](https://www.elternleben.de/elternsprechstunde/)
 
+- **Webinars**:  
+  Recommend these if the user wants to explore a topic in depth. Only suggest known URLs from the knowledge base (e.g., metadata file).
 
+GUIDELINES:
 
-Important notes:
+- Always recommend **Email Advice** at the end of the chat for ongoing questions.
+- Link **only to ElternLeben.de**.
+- Never fabricate links or give advice outside your scope.
+- If a question falls outside your domain, politely explain and redirect the user to an appropriate topic.
+- Keep your tone friendly, supportive, and professional — with light emojis 😊 where appropriate.
+- Keep answers **short, mobile-friendly, and focused**.
+- Respond **only in German** unless told otherwise.
+- All answers must be grounded in the retrieved knowledge (RAG context).
 
--Always recommend email advice at the end of the conversation in case further support is needed.
-
--Your style should be friendly and professional, with emojis to lighten things up, always on you.
--Keep replies short and readable for mobile devices.
-
-FURTHER RULES:
--You do not enter into conversations on topics that do not fall within your area of responsibility or that of ElternLeben.de .
--For any user query, you should ALWAYS consult your source of knowledge, even if you think you already know the answer.
--Your answer MUST be based on the information provided by that knowledge source.
--If a user asks questions that go beyond the actual topic, you should not answer them.
--Instead, kindly redirect to a topic you can help with.
--Only respond in German.
 
         """)
     )
@@ -451,16 +510,18 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
             result = rag_bot.chat(user_input)
             answer = result.response
 
-            # Extract sources
+  # 🔎 Inspect and extract URLs in one loop
             urls = set()
             for node in result.source_nodes:
-                if node.metadata.get("url"):
-                    urls.add(node.metadata["url"])
+                print("Source node metadata:", node.metadata)
+                url = node.metadata.get("url")
+                print("URL:", url)
+                if url:
+                    urls.add(url)
 
-            # Append URLs to the answer
+        # Append URLs to the answer
             if urls:
                 answer += "\n\n**Sources:**\n" + "\n".join(f"- [{url}]({url})" for url in urls)
-
         except Exception as e:
             answer = f"Entschuldigung, ich hatte Probleme bei der Bearbeitung Ihrer Frage: {e}"
 
@@ -482,9 +543,8 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
         count = st.session_state.topic_counts[topic]
 
         if count == 3:
-            webinars_json = get_webinars() 
-            matching_webinars = filter_webinars_by_topic(webinars_json, topic)
-
+            st.session_state.topic_counts[topic] = st.session_state.topic_counts.get(topic, 0) + 1
+            count = st.session_state.topic_counts[topic]
 
             if matching_webinars:
                 webinars_text = "\n\n".join(
@@ -504,7 +564,7 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
                 )        
             st.chat_message("assistant").markdown(webinar_response) #show webinar suggestions
  
-     # Referring to consultations
+    # Referring to consultations
     consultation_keywords = ["Beratung", "Termin"]
     if fuzzy_keyword_match(user_input, consultation_keywords):
         consultation_message = "„Ich verstehe, dass du an einer Beratung interessiert bist.  Unten findest du unsere verfügbaren Experten und Termine.  Bitte kontaktiere uns, um einen Termin zu vereinbaren:"
