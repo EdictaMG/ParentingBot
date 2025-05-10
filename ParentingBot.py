@@ -123,7 +123,7 @@ def download_articles(urls):
             if text:
                 doc = Document(text=text, metadata={"url":url})
                 documents.append(doc)
-                print(f"Document created for URL: {url}, Metadata: {doc.metadata}")  # Debug log to confirm metadata
+                #print(f"Document created for URL: {url}, Metadata: {doc.metadata}")  # Debug log to confirm metadata
         except Exception as e:
             print(f"Failed to download article from {url}: {e}")
             continue
