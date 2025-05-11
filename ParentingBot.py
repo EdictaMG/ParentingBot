@@ -81,8 +81,8 @@ if "chat_history" not in st.session_state:
 if "mentioned_topics" not in st.session_state:
     st.session_state["mentioned_topics"] = set()
     
-if "topic_counts" not in st.session_state:
-    st.session_state["topic_counts"] = {}
+if "topic_counts" not in st.session_state or not isinstance(st.session_state["topic_counts"], defaultdict):
+    st.session_state["topic_counts"] = defaultdict(int)
 
 # ----- SIDEBAR CONTROLS -------------------------------------------------------------------------------
 with st.sidebar:
@@ -390,7 +390,7 @@ for msg in st.session_state.chat_history:
 # ----- DEFINING KEYWORDS AND TOPICS ----------------------------------------------------------------------------------
 # Defining topic keywords for matching user input
 topic_keywords = {
-    "Wutausbrüch": ["wut", "treten", "schlagen", "wutausbrüch"],
+    "Wutausbruch": ["wut", "treten", "schlagen", "wutausbruch"],
     "Schwangerschaft": ["geburtsvorbereitung", "rückbildung", "schwangerschaft"],
     "Ernährung": ["essen", "trinken", "ernährung"],
     "Elternzeit": ["elternzeit", "elternkarenz"],
