@@ -26,7 +26,24 @@ To run the ElternLeben Bot you’ll need a Hugging Face API token. Following are
 ## Step 2: Clone the repository
 Clone this repository to your local computer. Due to use of a Mock API, a cloud option (such as deploying to [streamlit.io](streamlit.io)) is not available at this moment.
 
-## Step 3: Activate the Mock API
+
+## Step 3: Install required packages
+
+After cloning the repository, install the necessary dependencies using the `requirements.txt` file.
+
+```bash
+pip install -r requirements.txt
+```
+
+> **Optional but recommended**: Use a virtual environment to avoid conflicts with other Python projects.
+>
+> Create and activate a virtual environment:
+> ```bash
+> python -m venv venv
+> source venv/bin/activate      # On Windows: venv\Scripts\activate
+> ```
+
+## Step 4: Activate the Mock API
 **Navigate to the API folder**:
    ```bash
    cd mock_api
@@ -38,7 +55,7 @@ Clone this repository to your local computer. Due to use of a Mock API, a cloud 
    ```
    The API will be available at http://127.0.0.1:8000
 
-## Step 4: Setup the environment
+## Step 5: Setup the environment
 
 This project uses environment variables to manage sensitive information like API tokens. These variables are stored in a local `.env` file that is **not** included in the repository (for security).
 
@@ -55,7 +72,7 @@ This project uses environment variables to manage sensitive information like API
 
 3. **Your environment variables** will now be loaded automatically. 
 
-## Step 5: Deploy to streamlit
+## Step 6: Deploy to streamlit
 1. Install streamlit:
    ```bash
    pip install streamlit
