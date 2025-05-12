@@ -91,7 +91,7 @@ with st.sidebar:
         st.session_state["mentioned_topics"] = set()
         st.session_state["topic_counts"] = defaultdict(int)
         st.success("Der Gesprächsverlauf wurde gelöscht. Wir können neu beginnen 😊")
-        st.experimental_rerun() 
+        st.rerun() 
 
     st.markdown("---")
     st.markdown("### Ressourcen:")
@@ -427,9 +427,8 @@ def get_consultations():
         date_str = start.strftime("%A, %B %d, %Y")
         time_range = f"{start.strftime('%H:%M')} to {end.strftime('%H:%M')}"
         
-        return start, f"{date_str} — {time_range}"  # return datetime and formatted string
+        return start, f"{date_str} — {time_range}"
 
-    # Listing experts by first availabilities
     expert_slots = {}
     
     for name, expert_id in experts_list:
@@ -438,7 +437,6 @@ def get_consultations():
         if slots_response.status_code == 200:
             slots = slots_response.json()
             if slots:
-                # Sorting slots by the start datetime
                 sorted_slots = sorted(slots, key=lambda slot: slot['start_datetime'])
                 sorted_slots_all = format_slot(sorted_slots[0])[1]
                 expert_slots[name] = sorted_slots_all
@@ -446,19 +444,17 @@ def get_consultations():
                 expert_slots[name] = "Keine freien Termine."
         else:
             expert_slots[name] = "Momentan sind keine Termine verfügbar."
-            
-# Formating and spacing
+
     available_consultations = "" 
     for expert, slot in expert_slots.items():
-        available_consultations += f"\n{expert}:\n   - {slot}\n"  # Adding a newline after each expert's details for spacing
+        available_consultations += f"\n{expert}:\n   - {slot}\n"
 
     return available_consultations 
 
-# Extracting relevant topics from user input based on keywords using fuzzy
 def extract_topics(user_input, threshold=70):
     input_lower = user_input.lower()
     user_words = re.split(r'\W+', input_lower)  
-    user_words = [word for word in user_words if word]  # Remove empty strings
+    user_words = [word for word in user_words if word]
 
     extracted_topics = []
 
@@ -471,10 +467,9 @@ def extract_topics(user_input, threshold=70):
                     break  
             else:
                 continue
-            break  # Break out once a match is found
+            break
 
     return extracted_topics
-
 
 def fuzzy_keyword_match(text, keywords):
     text = text.lower()
@@ -489,28 +484,26 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
     st.chat_message("human", avatar=os.path.join(os.path.dirname(__file__), "Images", "parent.jpg")).markdown(user_input)
     st.session_state.chat_history.append({"role": "human", "content": user_input})
 
-#----- PRIORITY: Referring to emergency services
+    # Emergency detection
     emergency_keywords = ["dringend", "Notfall", "verzweifelt"]
     if fuzzy_keyword_match(user_input, emergency_keywords):
         emergency_message = "„Es scheint sich um einen Notfall zu handeln. Bitte wende dich sofort an den Notdienst!"
         st.write(emergency_message)
         st.stop()
 
-# ----- Initializing bot -----
+    # Initialize the bot
     @st.cache_resource
     def init_bot():
         return ContextChatEngine(llm=llm, retriever=retriever, memory=memory, prefix_messages=prompts)
 
     rag_bot = init_bot()
 
-
-# ------- Bot answers using RAG ----------
+    # Generate RAG-based response
     with st.spinner("📂 Suche nach einer Antwort in den Elternartikeln..."):
         try:
             result = rag_bot.chat(user_input)
             answer = result.response
 
-  # 🔎 Inspect and extract URLs in one loop
             urls = set()
             for node in result.source_nodes:
                 print("Source node metadata:", node.metadata)
@@ -519,24 +512,21 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
                 if url:
                     urls.add(url)
 
-        # Append URLs to the answer
             if urls:
                 answer += "\n\n**Sources:**\n" + "\n".join(f"- [{url}]({url})" for url in urls)
         except Exception as e:
             answer = f"Entschuldigung, ich hatte Probleme bei der Bearbeitung Ihrer Frage: {e}"
 
-# -------Show main RAG answer ----------
     with st.chat_message("assistant", avatar=os.path.join(os.path.dirname(__file__), "Images", "helping_hands.jpg")):
         st.markdown(answer)
 
     st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
-
-# ---- Extract topics ----
+    # Extract topics
     matched_topics = extract_topics(user_input)
     st.session_state.mentioned_topics.update(matched_topics)
 
-# ---- Count topics and offer webinars ----
+    # Count topics and offer webinars
     webinar_suggestions = []
     for topic in matched_topics:
         st.session_state.topic_counts[topic] += 1
@@ -545,6 +535,9 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
         if count == 3:
             st.session_state.topic_counts[topic] = st.session_state.topic_counts.get(topic, 0) + 1
             count = st.session_state.topic_counts[topic]
+
+            webinars_json = get_webinars()
+            matching_webinars = filter_webinars_by_topic(webinars_json, topic)
 
             if matching_webinars:
                 webinars_text = "\n\n".join(
@@ -560,11 +553,10 @@ if user_input := st.chat_input("Womit kann ich heute helfen"):
                 webinar_response = (
                     f"Ich habe dein Interesse an **{topic}** festgestellt und möchte dir einige mögliche Webinare empfehlen, die von unseren Experten geleitet werden. \n"
                     f'Leider konnte ich in nächster Zeit nichts Relevantes finden. Siehe unsere Liste der Webinare an, indem du auf die Schaltfläche unter „Ressourcen“ auf der linken Seite klickst.'
-
                 )        
-            st.chat_message("assistant").markdown(webinar_response) #show webinar suggestions
- 
-    # Referring to consultations
+            st.chat_message("assistant").markdown(webinar_response)
+
+    # Refer consultations
     consultation_keywords = ["Beratung", "Termin"]
     if fuzzy_keyword_match(user_input, consultation_keywords):
         consultation_message = "„Ich verstehe, dass du an einer Beratung interessiert bist.  Unten findest du unsere verfügbaren Experten und Termine.  Bitte kontaktiere uns, um einen Termin zu vereinbaren:"
